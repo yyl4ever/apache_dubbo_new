@@ -24,6 +24,7 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * EagerThreadPoolExecutor
+ * 饥渴线程池，核心线程满了，再来任务主要会扩张线程数
  */
 public class EagerThreadPoolExecutor extends ThreadPoolExecutor {
 

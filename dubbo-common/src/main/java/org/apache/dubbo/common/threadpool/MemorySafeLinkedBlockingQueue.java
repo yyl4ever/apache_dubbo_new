@@ -29,13 +29,17 @@ import java.util.concurrent.TimeUnit;
  * {@link MemoryLimitedLinkedBlockingQueue}.
  *
  * @see <a href="https://github.com/apache/incubator-shenyu/blob/master/shenyu-common/src/main/java/org/apache/shenyu/common/concurrent/MemorySafeLinkedBlockingQueue.java">MemorySafeLinkedBlockingQueue</a>
+ *
+ * 限制的是 JVM 里面的剩余空间。比如默认就是当整个 JVM 只剩下 256M 可用内存的时候，再往队列里面加元素我就不让你加了
  */
 public class MemorySafeLinkedBlockingQueue<E> extends LinkedBlockingQueue<E> {
 
     private static final long serialVersionUID = 8032578371739960142L;
 
     public static int THE_256_MB = 256 * 1024 * 1024;
-
+    /**
+     * maxFreeMemory，最大的剩余内存，默认是 256M
+     */
     private long maxFreeMemory;
 
     private Rejector<E> rejector;
@@ -89,6 +93,7 @@ public class MemorySafeLinkedBlockingQueue<E> extends LinkedBlockingQueue<E> {
      * determine if there is any remaining free memory.
      *
      * @return true if has free memory
+     * 设计理念是只关心添加元素时候的剩余空间大小，它甚至都不会去关注当前这个元素的大小
      */
     public boolean hasRemainedMemory() {
         return MemoryLimitCalculator.maxAvailable() > maxFreeMemory;

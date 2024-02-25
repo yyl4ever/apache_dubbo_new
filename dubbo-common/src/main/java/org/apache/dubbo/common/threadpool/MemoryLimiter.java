@@ -29,10 +29,19 @@ public class MemoryLimiter {
 
     private final Instrumentation inst;
 
+    /**
+     * 队列最大所能容纳的大小
+     */
     private long memoryLimit;
 
+    /**
+     * 当前已经使用的大小
+     */
     private final LongAdder memory = new LongAdder();
 
+    /**
+     * 往队列里面放元素和释放队列里面的元素都需要获取对应的锁
+     */
     private final ReentrantLock acquireLock = new ReentrantLock();
 
     private final Condition notLimited = acquireLock.newCondition();
@@ -138,14 +147,20 @@ public class MemoryLimiter {
         if (e == null) {
             throw new NullPointerException();
         }
+        // 上锁，整个 try 里面的方法是线程安全的
         acquireLock.lockInterruptibly();
         try {
+            // 获得当前放入对象的一个 size，并判断当前已经使用的值加上这个 size 之后，是否大于了我们设置的最大值
             final long objectSize = inst.getObjectSize(e);
+            // 计算 memory 这个 LongAdder 类型的 sum 值加上当前这个对象的值之后，是不是大于或者等于 memoryLimit
             // see https://github.com/apache/incubator-shenyu/pull/3335
             while (memory.sum() + objectSize >= memoryLimit) {
+                // 如果计算后的值真的超过了 memoryLimit，那么说明需要阻塞一下
                 notLimited.await();
             }
+            // 如果没有超过 memoryLimit，说明还能往队列里面放东西，那么就更新 memory 的值。
             memory.add(objectSize);
+            // 判断一下当前已经使用的值是否没有超过 memoryLimit，如果是的话，就调用 notLimited.signal() 方法，唤醒一下之前由于 memoryLimit 参数限制导致不能放入的对象
             if (memory.sum() < memoryLimit) {
                 notLimited.signal();
             }

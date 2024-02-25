@@ -39,6 +39,7 @@ public class MemoryLimitCalculator {
     private static final AtomicBoolean refreshStarted = new AtomicBoolean(false);
 
     private static void refresh() {
+        // 当前还可以使用的 JVM 内存
         maxAvailable = Runtime.getRuntime().freeMemory();
     }
 
@@ -51,9 +52,11 @@ public class MemoryLimitCalculator {
             if (refreshStarted.compareAndSet(false, true)) {
                 ScheduledExecutorService scheduledExecutorService =
                         Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("Dubbo-Memory-Calculator"));
+                // 注入了一个每 50ms 运行一次的定时任务。到点了，就触发一下 refresh 方法，保证 maxAvilable 参数的准实时性
                 // check every 50 ms to improve performance
                 scheduledExecutorService.scheduleWithFixedDelay(
                         MemoryLimitCalculator::refresh, 50, 50, TimeUnit.MILLISECONDS);
+                // 加入了 JVM 的 ShutdownHook，停服务的时候需要把这个定时任务给停了，达到优雅停机的目的
                 GlobalResourcesRepository.registerGlobalDisposable(() -> {
                     refreshStarted.set(false);
                     scheduledExecutorService.shutdown();

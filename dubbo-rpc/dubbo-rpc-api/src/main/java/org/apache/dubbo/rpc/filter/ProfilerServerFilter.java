@@ -91,6 +91,7 @@ public class ProfilerServerFilter implements Filter, BaseFilter.Listener {
 
     private void addAdaptiveResponse(Result appResponse, Invocation invocation) {
         String adaptiveLoadAttachment = invocation.getAttachment(Constants.ADAPTIVE_LOADBALANCE_ATTACHMENT_KEY);
+        // 如果不为空则搞点事情，然后再重新给这个变量赋值
         if (StringUtils.isNotEmpty(adaptiveLoadAttachment)) {
             OperatingSystemMXBean operatingSystemMXBean = ManagementFactory.getOperatingSystemMXBean();
 

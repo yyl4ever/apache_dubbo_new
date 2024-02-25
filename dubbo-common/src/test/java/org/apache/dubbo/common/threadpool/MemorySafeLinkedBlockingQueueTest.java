@@ -37,13 +37,18 @@ class MemorySafeLinkedBlockingQueueTest {
         ByteBuddyAgent.install();
         final Instrumentation instrumentation = ByteBuddyAgent.getInstrumentation();
         final long objectSize = instrumentation.getObjectSize((Runnable) () -> {});
+        // 获取当前可用内存
         long maxFreeMemory = (long) MemoryLimitCalculator.maxAvailable();
+        // 初始化队列，让其不能接收元素
         MemorySafeLinkedBlockingQueue<Runnable> queue = new MemorySafeLinkedBlockingQueue<>(maxFreeMemory);
+        // 队列不能放东西了，返回 false
         // all memory is reserved for JVM, so it will fail here
         assertThat(queue.offer(() -> {}), is(false));
 
+
         // maxFreeMemory-objectSize Byte memory is reserved for the JVM, so this will succeed
         queue.setMaxFreeMemory((int) (MemoryLimitCalculator.maxAvailable() - objectSize));
+        // 满足 org.apache.dubbo.common.threadpool.MemorySafeLinkedBlockingQueue.hasRemainedMemory
         assertThat(queue.offer(() -> {}), is(true));
     }
 

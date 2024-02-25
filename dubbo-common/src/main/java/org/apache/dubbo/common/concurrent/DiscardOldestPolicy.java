@@ -20,12 +20,16 @@ import java.util.Queue;
 
 /**
  * A handler for rejected element that discards the oldest element.
+ * 当队列满时，丢弃队列中最旧（最早进入队列）的元素，然后将新的元素添加到队列中
+ * 当队列满时，通过丢弃队列中最旧的元素来为新元素腾出空间。
  */
 public class DiscardOldestPolicy<E> implements Rejector<E> {
 
     @Override
     public void reject(final E e, final Queue<E> queue) {
+        // 移除并返回队列头部的元素（最旧的元素）
         queue.poll();
+        // 将新元素e添加到队列中
         queue.offer(e);
     }
 }
