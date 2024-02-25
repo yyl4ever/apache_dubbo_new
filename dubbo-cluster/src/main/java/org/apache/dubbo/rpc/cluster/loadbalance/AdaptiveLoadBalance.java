@@ -34,6 +34,8 @@ import static org.apache.dubbo.common.constants.CommonConstants.DEFAULT_TIMEOUT;
 import static org.apache.dubbo.common.constants.CommonConstants.LOADBALANCE_KEY;
 
 /**
+ * 自适应负载均衡算法
+ * 自适应负载均衡，站在服务调用方的角度来说的。服务调用方来决定本次由哪个服务提供方来执行这次请求。
  * AdaptiveLoadBalance
  * </p>
  */
@@ -53,8 +55,11 @@ public class AdaptiveLoadBalance extends AbstractLoadBalance {
     @Override
     protected <T> Invoker<T> doSelect(List<Invoker<T>> invokers, URL url, Invocation invocation) {
         Invoker<T> invoker = selectByP2C(invokers, invocation);
+        // 客户端告诉服务端：我这边需要 mem,load 这两个维度，你一会给我送回来
         invocation.setAttachment(Constants.ADAPTIVE_LOADBALANCE_ATTACHMENT_KEY, attachmentKey);
+        // 用于设置 pickTime
         long startTime = System.currentTimeMillis();
+        // 在上下文中维护了一个 startTime，表示这个请求开始执行的时间
         invocation.getAttributes().put(Constants.ADAPTIVE_LOADBALANCE_START_TIME, startTime);
         invocation.getAttributes().put(LOADBALANCE_KEY, LoadbalanceRules.ADAPTIVE);
         adaptiveMetrics.addConsumerReq(getServiceKey(invoker, invocation));
@@ -75,10 +80,12 @@ public class AdaptiveLoadBalance extends AbstractLoadBalance {
 
         int pos1 = ThreadLocalRandom.current().nextInt(length);
         int pos2 = ThreadLocalRandom.current().nextInt(length - 1);
+        // 当 pos2 和 pos1 随机出一样的值的时候，把 pos2 进行加一处理
         if (pos2 >= pos1) {
             pos2 = pos2 + 1;
         }
 
+        // 选择负载比较低的
         return chooseLowLoadInvoker(invokers.get(pos1), invokers.get(pos2), invocation);
     }
 
@@ -118,6 +125,7 @@ public class AdaptiveLoadBalance extends AbstractLoadBalance {
         long load2 = Double.doubleToLongBits(
                 adaptiveMetrics.getLoad(getServiceKey(invoker2, invocation), weight2, timeout2));
 
+        // 两个 invoker 都可以使用，则按照权重选择一个
         if (load1 == load2) {
             // The sum of weights
             int totalWeight = weight1 + weight2;

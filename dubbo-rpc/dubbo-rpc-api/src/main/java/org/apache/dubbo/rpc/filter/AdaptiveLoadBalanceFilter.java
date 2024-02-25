@@ -112,6 +112,7 @@ public class AdaptiveLoadBalanceFilter implements Filter, Filter.Listener {
             if (StringUtils.isEmpty(loadBalance) || !LoadbalanceRules.ADAPTIVE.equals(loadBalance)) {
                 return;
             }
+            // 维护了 AdaptiveMetrics 的 consumerSuccess（请求成功）、errorReq（请求失败）这两个属性
             adaptiveMetrics.addConsumerSuccess(getServiceKey(invocation));
             String attachment = appResponse.getAttachment(Constants.ADAPTIVE_LOADBALANCE_ATTACHMENT_KEY);
             if (StringUtils.isNotEmpty(attachment)) {
@@ -119,7 +120,9 @@ public class AdaptiveLoadBalanceFilter implements Filter, Filter.Listener {
                 if (parties.length == 0) {
                     return;
                 }
+                // curTime、load、rt 这三个属性
                 Map<String, String> metricsMap = new HashMap<>();
+                //
                 for (String party : parties) {
                     String[] groups = party.split(":");
                     if (groups.length != 2) {
@@ -129,6 +132,7 @@ public class AdaptiveLoadBalanceFilter implements Filter, Filter.Listener {
                 }
 
                 Long startTime = (Long) invocation.getAttributes().get(Constants.ADAPTIVE_LOADBALANCE_START_TIME);
+                // 当收到服务端的响应之后，在这里取出了 startTime 用来计算 rt 值
                 if (null != startTime) {
                     metricsMap.put("rt", String.valueOf(System.currentTimeMillis() - startTime));
                 }
@@ -147,6 +151,7 @@ public class AdaptiveLoadBalanceFilter implements Filter, Filter.Listener {
         String loadBalance = (String) invocation.getAttributes().get(LOADBALANCE_KEY);
         if (StringUtils.isNotEmpty(loadBalance) && LoadbalanceRules.ADAPTIVE.equals(loadBalance)) {
             getExecutor().execute(() -> {
+                // 维护了 AdaptiveMetrics 的 consumerSuccess（请求成功）、errorReq（请求失败）这两个属性
                 adaptiveMetrics.addErrorReq(getServiceKey(invocation));
             });
         }

@@ -29,7 +29,9 @@ import java.util.concurrent.atomic.AtomicLong;
  * adaptive Metrics statistics.
  */
 public class AdaptiveMetrics {
-
+    /**
+     * 以“ip:端口:方法”为 key， value 里面放了很多计算负载相关的字段
+     */
     private final ConcurrentMap<String, AdaptiveMetrics> metricsStatistics = new ConcurrentHashMap<>();
 
     private long currentProviderTime = 0;
@@ -46,9 +48,16 @@ public class AdaptiveMetrics {
     private final AtomicLong errorReq = new AtomicLong();
     private double ewma = 0;
 
+    /**
+     * @param idKey
+     * @param weight
+     * @param timeout
+     * @return
+     */
     public double getLoad(String idKey, int weight, int timeout) {
         AdaptiveMetrics metrics = getStatus(idKey);
 
+        // 当前时间减去 pickTime 时间，如果差值超过超时时间的两倍，则直接选中它。假设超时时间是 5s，那么当这个服务端距离上次被选中的时间超过 10s，则返回 0，既表示无负载。
         // If the time more than 2 times, mandatory selected
         if (System.currentTimeMillis() - metrics.pickTime > timeout * 2) {
             return 0;
@@ -69,6 +78,15 @@ public class AdaptiveMetrics {
         }
 
         long inflight = metrics.consumerReq.get() - metrics.consumerSuccess.get() - metrics.errorReq.get();
+        /**
+         * providerCPULoad：是在 ProfilerServerFilter 的 onResponse 方法中经过计算得到的 cpu load。
+         * ewma：是在 setProviderMetrics 方法里面维护的，其中 lastLatency 是在 ProfilerServerFilter 的 onResponse 方法中经过计算得到的 rt 值。
+         * inflight：是当前服务提供方正在处理中的请求个数。
+         * consumerSuccess：是在每次调用成功后在 AdaptiveLoadBalanceFilter 的 onResponse 方法中维护的值。
+         * consumerReq：是总的调用次数。
+         * weight：是服务提供方配置的权重。
+         */
+        // 每个服务提供方经过上面的计算都会得到一个 load 值，其值越低代表越其负载越低。请求就应该发到负载低的机器上去。
         return metrics.providerCPULoad
                 * (Math.sqrt(metrics.ewma) + 1)
                 * (inflight + 1)
@@ -121,6 +139,7 @@ public class AdaptiveMetrics {
                 .orElse("0")));
 
         metrics.beta = 0.5;
+        // 指数加权平均(exponentially weighted moving average)，简称 EWMA，可以用来估计变量的局部均值，使得变量的更新与一段时间内的历史取值有关。
         // Vt =  β * Vt-1 + (1 -  β ) * θt
         metrics.ewma = metrics.beta * metrics.ewma + (1 - metrics.beta) * metrics.lastLatency;
     }
